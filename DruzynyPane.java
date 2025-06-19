@@ -1,10 +1,9 @@
-
+import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
-import java.util.List;
 
 public class DruzynyPane extends VBox {
-    public DruzynyPane(List<Druzyna> druzyny, TableView<Druzyna> tabela) {
+    public DruzynyPane(LeagueManager manager, TableView<Druzyna> tabela) {
         Label lblNazwa = new Label("Nazwa drużyny:");
         TextField tfNazwa = new TextField();
         Label lblTrener = new Label("Trener:");
@@ -12,18 +11,19 @@ public class DruzynyPane extends VBox {
         Button btnDodaj = new Button("Dodaj drużynę");
 
         btnDodaj.setOnAction(e -> {
-            String nazwa = tfNazwa.getText();
-            String trener = tfTrener.getText();
-            if (!nazwa.isEmpty() && !trener.isEmpty()) {
-                druzyny.add(new Druzyna(nazwa, trener));
+            try {
+                manager.addTeam(tfNazwa.getText(), tfTrener.getText());
                 tfNazwa.clear();
                 tfTrener.clear();
-                tabela.refresh();
+                tabela.getItems().setAll(manager.getSortedTeams());
+            } catch (Exception ex) {
+                new Alert(Alert.AlertType.WARNING, ex.getMessage())
+                        .showAndWait();
             }
         });
 
-        this.setSpacing(10);
-        this.setPadding(new javafx.geometry.Insets(10));
-        this.getChildren().addAll(lblNazwa, tfNazwa, lblTrener, tfTrener, btnDodaj);
+        setSpacing(10);
+        setPadding(new Insets(10));
+        getChildren().addAll(lblNazwa, tfNazwa, lblTrener, tfTrener, btnDodaj);
     }
 }

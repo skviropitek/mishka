@@ -1,21 +1,13 @@
-
 import javafx.application.Application;
-import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.ReadOnlyStringWrapper;
-
-import javafx.geometry.Insets;
+import javafx.stage.Stage;
+import javafx.stage.FileChooser;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
-
-import java.util.*;
+import java.io.File;
+import java.io.IOException;
 
 public class TurniejPilkiNoznejApp extends Application {
-
-    private final List<Druzyna> listaDruzyn = new ArrayList<>();
-    private final List<Mecz> listaMeczy = new ArrayList<>();
-    private final TableView<Druzyna> tabelaDruzyn = new TableView<>();
 
     public static void main(String[] args) {
         launch(args);
@@ -25,15 +17,73 @@ public class TurniejPilkiNoznejApp extends Application {
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Turniej Piłkarski");
 
-        TabPane tabPane = new TabPane();
+        LeagueManager manager = new LeagueManager();
+        TableView<Druzyna> tabelaDruzyn = new TableView<>();
 
-        Tab tabDruzyny = new Tab("Drużyny", new DruzynyPane(listaDruzyn, tabelaDruzyn));
-        Tab tabMecze = new Tab("Mecze", new MeczePane(listaDruzyn, listaMeczy, tabelaDruzyn));
-        Tab tabTabela = new Tab("Tabela", new TabelaPane(tabelaDruzyn, listaDruzyn));
+        MenuBar menuBar = createMenuBar(primaryStage, manager, tabelaDruzyn);
 
-        tabPane.getTabs().addAll(tabDruzyny, tabMecze, tabTabela);
+        TabPane tabs = new TabPane();
+        tabs.getTabs().addAll(
+                new Tab("Drużyny",  new DruzynyPane(manager, tabelaDruzyn)),
+                new Tab("Mecze",    new MeczePane(manager, tabelaDruzyn)),
+                new Tab("Tabela",   new TabelaPane(manager, tabelaDruzyn)),
+                new Tab("Historia", new HistoryPane(manager, tabelaDruzyn))
+        );
+        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
 
-        primaryStage.setScene(new Scene(tabPane, 800, 600));
+        VBox root = new VBox(menuBar, tabs);
+        Scene scene = new Scene(root, 900, 600);
+        primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    private MenuBar createMenuBar(Stage primaryStage,
+                                  LeagueManager manager,
+                                  TableView<Druzyna> tabela) {
+        Menu fileMenu = new Menu("Файл");
+
+        MenuItem miSave = new MenuItem("Сохранить...");
+        miSave.setOnAction(e -> {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Сохранить турнир");
+            File file = fc.showSaveDialog(primaryStage);
+            if (file != null) {
+                try {
+                    manager.saveToFile(file.getAbsolutePath());
+                    showInfo("Сохранено в " + file.getName());
+                } catch (IOException ex) {
+                    showError("Ошибка сохранения: " + ex.getMessage());
+                }
+            }
+        });
+
+        MenuItem miLoad = new MenuItem("Загрузить...");
+        miLoad.setOnAction(e -> {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Загрузить турнир");
+            File file = fc.showOpenDialog(primaryStage);
+            if (file != null) {
+                try {
+                    manager.loadFromFile(file.getAbsolutePath());
+                    // После загрузки пересчитываем статистику и обновляем таблицу
+                    manager.recalculateStats();
+                    tabela.getItems().setAll(manager.getSortedTeams());
+                    showInfo("Загружено из " + file.getName());
+                } catch (Exception ex) {
+                    showError("Ошибка загрузки: " + ex.getMessage());
+                }
+            }
+        });
+
+        fileMenu.getItems().addAll(miSave, miLoad);
+        return new MenuBar(fileMenu);
+    }
+
+    private void showInfo(String msg) {
+        new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK).showAndWait();
+    }
+
+    private void showError(String msg) {
+        new Alert(Alert.AlertType.ERROR, msg, ButtonType.OK).showAndWait();
     }
 }
